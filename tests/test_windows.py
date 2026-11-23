@@ -25,8 +25,11 @@ NEW = 'N3w&pass|with^cmd%chars"!'
 
 
 def ps(script):
+    # Windows PowerShell 5.1 started from PowerShell 7 inherits 7's PSModulePath and then fails to load
+    # its own modules; drop it so 5.1 uses its defaults. (sshd sessions start clean and are not affected.)
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
     r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr
     return r.stdout.strip()
 
@@ -114,4 +117,7 @@ def test_probe_records_how_this_host_treats_enter():
     finally:
         s.close()
     print(report.text(400))  # the CI log keeps the raw bytes of a real Windows OpenSSH session
-    assert report.crlf_runs
+    # what the practice found, checked again on a current Windows OpenSSH:
+    assert not report.lf_runs and report.merged_after_lf  # LF is not Enter; the two commands become one line
+    assert report.crlf_runs                               # CR LF is
+    assert report.csi > 0                                 # the output carries terminal control codes

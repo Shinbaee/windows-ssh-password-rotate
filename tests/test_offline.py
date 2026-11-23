@@ -142,6 +142,18 @@ def test_probe_unix_like_shell():
     assert r.lf_runs and r.crlf_runs and not r.merged_after_lf and r.osc == 0
 
 
+def test_probe_recorded_windows_openssh_9_5():
+    """Bytes recorded by the windows-openssh CI job (OpenSSH_for_Windows_9.5p2, cmd.exe); host name replaced.
+    The next line starts with a cursor move (ESC[7;1H), not a line break."""
+    lf = b"echo WSPR_LF_1echo WSPR_LF_2"
+    flush = b"\r\n\x1b[?25lWSPR_LF_1echo WSPR_LF_2\x1b[7;1Huser@host C:\\Users\\user>\x1b[?25h"
+    crlf = b"echo WSPR_CRLF\r\n\x1b[?25lWSPR_CRLF\x1b[10;1Huser@host C:\\Users\\user>\x1b[?25h"
+    r = probe.analyze(lf, flush, crlf)
+    assert not r.lf_runs and r.merged_after_lf and r.crlf_runs
+    assert r.csi == 6 and r.osc == 0
+    assert probe.strip(crlf.decode()).split("\n") == ["echo WSPR_CRLF", "WSPR_CRLF", "user@host C:\\Users\\user>"]
+
+
 def test_probe_console_that_wants_cr():
     """Shaped like the failure in the practice: LF is not Enter, both lines end up as one, and a
     window-title sequence repeats the typed command."""

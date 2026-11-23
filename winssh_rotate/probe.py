@@ -15,10 +15,13 @@ from dataclasses import dataclass, field
 
 CSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 OSC = re.compile(r"\x1b\]([^\x07\x1b]*)(?:\x07|\x1b\\)")
+# Cursor moves (position, next/previous line, line position). A pseudo console (ConPTY) often starts
+# the next line with one of these instead of a line break, so "WSPR_CRLF\x1b[10;1Hprompt>" is two lines.
+MOVE = re.compile(r"\x1b\[[0-9;?]*[HfEFd]")
 
 
 def strip(text: str) -> str:
-    return OSC.sub("", CSI.sub("", text)).replace("\r", "")
+    return CSI.sub("", OSC.sub("", MOVE.sub("\n", text))).replace("\r", "")
 
 
 def read_quiet(chan, quiet: float = 1.0, limit: float = 6.0) -> bytes:
