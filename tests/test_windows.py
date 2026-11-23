@@ -98,8 +98,10 @@ def test_not_an_administrator(account, monkeypatch, capsys):
 
 def test_disabled_account(account, monkeypatch, capsys):
     ps("Disable-LocalUser -Name rot_app")
-    assert run(monkeypatch) == flow.CANNOT_SIGN_IN
-    assert "is disabled" in capsys.readouterr().out
+    code = run(monkeypatch)
+    out = clean(capsys)
+    print("disabled account:", out.err, out.out)  # records how the failed sign-in looked (refused or dropped)
+    assert code == flow.CANNOT_SIGN_IN and "is disabled" in out.out
 
 
 def test_locked_account(account, monkeypatch, capsys):
