@@ -31,8 +31,16 @@ jobs:
           if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
             Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
           }
-          Start-Service sshd
-          (Get-Command sshd -ErrorAction SilentlyContinue).Version; & "$env:WINDIR\System32\OpenSSH\sshd.exe" -V 2>&1
+          # The runner image's sshd_config only admits listed groups (seen in the sshd event log:
+          # "not allowed because none of user's groups are listed in AllowGroups"). Add Users.
+          $cfg = "$env:ProgramData\ssh\sshd_config"
+          if (Test-Path $cfg) {
+            Select-String -Path $cfg -Pattern '^\s*(AllowGroups|AllowUsers|DenyUsers|DenyGroups)' | ForEach-Object { "before: $($_.Line)" }
+            (Get-Content $cfg) -replace '^(\s*AllowGroups\s+.*)$', '$1 users' | Set-Content -Encoding ascii $cfg
+            Select-String -Path $cfg -Pattern '^\s*AllowGroups' | ForEach-Object { "after:  $($_.Line)" }
+          }
+          Restart-Service sshd -ErrorAction SilentlyContinue; Start-Service sshd
+          & "$env:WINDIR\System32\OpenSSH\sshd.exe" -V 2>&1
           New-LocalUser -Name rot_admin -Password (ConvertTo-SecureString $env:ADMIN_PW -AsPlainText -Force) -PasswordNeverExpires | Out-Null
           Add-LocalGroupMember -Group Administrators -Member rot_admin
           net accounts /minpwlen:12 /lockoutthreshold:3 /lockoutwindow:30 /lockoutduration:30

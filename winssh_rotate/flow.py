@@ -128,4 +128,4 @@ def rotate(connect: Callable, req: Request, log: Callable[[str], None]) -> str:
     if _signs_in(connect, req.account, req.old_password)[0]:
         raise Failure(NOT_CHANGED, "password was not changed: the old password still signs in")
     raise Failure(BOTH_REFUSED, "neither the new nor the old password signs in "
-                                "(may the account sign in over SSH? Users group, AllowUsers/DenyUsers)")
+                                "(may the account sign in over SSH at all? sshd_config AllowGroups/AllowUsers/DenyUsers)")
