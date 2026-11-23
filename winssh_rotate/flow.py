@@ -54,12 +54,17 @@ def _admin(connect: Callable, req: Request):
         raise Failure(UNREACHABLE, f"cannot reach the host: {e}") from None
 
 
-def _signs_in(connect: Callable, user: str, password: str) -> bool:
+def _signs_in(connect: Callable, user: str, password: str) -> tuple[bool, str]:
+    """(signed in, how it failed). Windows sshd was seen dropping the connection instead of refusing
+    the sign-in (disabled account), so a dropped connection is a failed sign-in here, not "unreachable":
+    the admin session moments ago proved the host is up."""
     try:
         connect(user, password).close()
-        return True
+        return True, ""
     except AuthFailed:
-        return False
+        return False, "refused"
+    except Unreachable as e:
+        return False, f"connection dropped ({e})"
 
 
 def _account_state(connect: Callable, req: Request) -> str | None:
@@ -108,10 +113,11 @@ def rotate(connect: Callable, req: Request, log: Callable[[str], None]) -> str:
         raise Failure(CHANGE_FAILED, f"change failed: {status} {detail}{hint}")
 
     # 2) verify: a new SSH session as the account
-    if _signs_in(connect, req.account, req.new_password):
+    ok, how = _signs_in(connect, req.account, req.new_password)
+    if ok:
         log("verify: new password signs in over SSH")
         return f"password of {req.account} changed and verified"
-    log("verify: new password refused")
+    log(f"verify: new password did not sign in: {how}")
 
     # 3) why? Windows answers a locked or disabled account the same as a wrong password, so ask.
     state = _account_state(connect, req)
@@ -119,7 +125,7 @@ def rotate(connect: Callable, req: Request, log: Callable[[str], None]) -> str:
         raise Failure(CANNOT_SIGN_IN, f"password changed, but {req.account} is {state}; new password not verified")
     if not req.diagnose or not req.old_password:
         raise Failure(UNVERIFIED, "new password does not sign in; old password not tried")
-    if _signs_in(connect, req.account, req.old_password):
+    if _signs_in(connect, req.account, req.old_password)[0]:
         raise Failure(NOT_CHANGED, "password was not changed: the old password still signs in")
     raise Failure(BOTH_REFUSED, "neither the new nor the old password signs in "
-                                "(SSH access for this account? AllowUsers/DenyUsers in sshd_config?)")
+                                "(may the account sign in over SSH? Users group, AllowUsers/DenyUsers)")

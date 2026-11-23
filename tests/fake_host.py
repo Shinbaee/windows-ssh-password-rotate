@@ -44,7 +44,11 @@ class FakeHost:
         if self.down:
             raise Unreachable("host:22: TimeoutError: timed out")
         u = self.users.get(user)
-        ok = u is not None and not u.locked and not u.disabled and u.password == password
+        if u is not None and u.disabled:
+            # what the CI job saw on Windows OpenSSH 9.5: the connection is dropped, not refused
+            self.attempts.append((user, False))
+            raise Unreachable("localhost:22: ConnectionResetError: [WinError 10054] connection forcibly closed")
+        ok = u is not None and not u.locked and u.password == password
         self.attempts.append((user, ok))
         if not ok:
             if u is not None and not u.locked and u.password != password:

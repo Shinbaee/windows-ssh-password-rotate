@@ -38,7 +38,9 @@ def ps(script):
 def account():
     ps("Remove-LocalUser -Name rot_app -ErrorAction SilentlyContinue; "
        f"New-LocalUser -Name rot_app -Password (ConvertTo-SecureString '{INITIAL}' -AsPlainText -Force) "
-       "-PasswordNeverExpires | Out-Null")
+       "-PasswordNeverExpires | Out-Null; "
+       # New-LocalUser does not add the account to Users; without it the account cannot sign in over SSH
+       "Add-LocalGroupMember -Group Users -Member rot_app")
     yield "rot_app"
     ps("Remove-LocalUser -Name rot_app -ErrorAction SilentlyContinue")
 
@@ -84,7 +86,8 @@ def test_missing_account(account, monkeypatch, capsys):
 
 def test_not_an_administrator(account, monkeypatch, capsys):
     ps("Remove-LocalUser -Name rot_other -ErrorAction SilentlyContinue; "
-       f"New-LocalUser -Name rot_other -Password (ConvertTo-SecureString '{INITIAL}' -AsPlainText -Force) | Out-Null")
+       f"New-LocalUser -Name rot_other -Password (ConvertTo-SecureString '{INITIAL}' -AsPlainText -Force) | Out-Null; "
+       "Add-LocalGroupMember -Group Users -Member rot_other")
     try:
         code = run(monkeypatch, account="rot_other", admin="rot_app", admin_pw=INITIAL)
         print(capsys.readouterr().out)
