@@ -23,7 +23,7 @@ def parse_args(argv=None):
         sp.add_argument("--host", required=True)
         sp.add_argument("--port", type=int, default=22)
         sp.add_argument("--known-hosts", help="extra known_hosts file; unknown host keys are always refused")
-        sp.add_argument("--timeout", type=float, default=20.0)
+        sp.add_argument("--timeout", type=float, default=60.0, help="seconds; the first sign-in of an account on Windows creates its profile and can be slow")
 
     r = sub.add_parser("rotate", help="change a local account's password and verify it")
     common(r)

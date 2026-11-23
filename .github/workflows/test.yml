@@ -45,6 +45,13 @@ jobs:
         env:
           WSPR_TEST_KNOWN_HOSTS: ${{ runner.temp }}\known_hosts
           WSPR_TEST_ADMIN_PW: Ci-admin-pass-0001
+      - name: sshd events (on failure)
+        if: failure()
+        shell: pwsh
+        run: |
+          net accounts
+          Get-WinEvent -LogName OpenSSH/Operational -MaxEvents 60 | Sort-Object TimeCreated |
+            Format-Table -AutoSize -Wrap TimeCreated, Id, Message | Out-String -Width 300
 
   linux-probe:
     runs-on: ubuntu-latest

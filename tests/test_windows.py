@@ -19,7 +19,7 @@ ADMIN = os.environ.get("WSPR_TEST_ADMIN", "rot_admin")
 ADMIN_PW = os.environ.get("WSPR_TEST_ADMIN_PW", "")
 pytestmark = pytest.mark.skipif(not KNOWN or sys.platform != "win32", reason="no Windows test host")
 
-HOST = Host("localhost", 22, KNOWN, 30)
+HOST = Host("localhost", 22, KNOWN, 120)  # the first sign-in of an account creates its profile: slow
 INITIAL = "Initial-pass-0001"
 NEW = 'N3w&pass|with^cmd%chars"!'
 
@@ -58,7 +58,7 @@ def run(monkeypatch, *extra, new=NEW, account="rot_app", admin=ADMIN, admin_pw=A
         monkeypatch.setenv(k, v)
     return cli.main(["rotate", "--host", "localhost", "--known-hosts", KNOWN, "--account", account,
                      "--admin-user", admin, "--admin-password-env", "T_ADMIN", "--new-password-env", "T_NEW",
-                     "--old-password-env", "T_OLD", *extra])
+                     "--old-password-env", "T_OLD", "--timeout", "120", *extra])
 
 
 def clean(capsys):
